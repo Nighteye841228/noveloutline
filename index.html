@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業劇情編排工具</title>
+    <style>
+        :root {
+            --primary: #2196F3;
+            --danger: #f44336;
+            --bg: #f8f9fa;
+            --panel-width: 340px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- 左側面板 --- */
+        #sidebar {
+            width: var(--panel-width);
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .panel-header {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 1rem;
+            color: #444;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .panel-content {
+            padding: 15px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* 通用輸入樣式 */
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 5px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .btn-group input[type="text"] {
+            margin-bottom: 0;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.add-btn {
+            width: 100%;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        /* 角色列表 */
+        #char-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .char-tag {
+            display: inline-flex;
+            /* 讓標籤排列更自然 */
+            align-items: center;
+            /* 垂直置中 */
+            gap: 6px;
+            /* 圓點跟文字的距離 */
+            padding: 5px 10px 5px 6px;
+            /* 調整內距讓視覺平衡 */
+            border-radius: 20px;
+            /* 完整的圓角膠囊 */
+            background: #f0f0f0;
+            /* 稍微亮一點的灰色背景 */
+            border: 1px solid #ddd;
+            /* 很細的灰色邊框增加質感 */
+            font-size: 0.9rem;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            /* 防止連點時選取到文字 */
+        }
+
+        .char-tag:hover {
+            background: #e4e4e4;
+            /* 滑鼠移過去稍微變深 */
+            transform: translateY(-1px);
+            /* 微微浮起的效果 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .char-tag:active {
+            transform: scale(0.95);
+        }
+
+        .char-color-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .delete-char-btn {
+            font-size: 0.7rem;
+            color: #999;
+            margin-left: 5px;
+            width: 16px;
+            height: 16px;
+            line-height: 14px;
+            text-align: center;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .delete-char-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* 劇情列表 */
+        #plot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .plot-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-left: 4px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: grab;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .plot-card:hover {
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .plot-card.dragging {
+            opacity: 0.5;
+            background: #eef;
+            border: 2px dashed #999;
+        }
+
+        .card-content {
+            flex-grow: 1;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+
+        .card-index {
+            font-weight: bold;
+            color: #bbb;
+            font-size: 0.8rem;
+            margin-right: 5px;
+        }
+
+        .delete-node-btn {
+            color: #ddd;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .delete-node-btn:hover {
+            color: var(--danger);
+        }
+
+        /* --- 右側畫布 --- */
+        #workspace {
+            flex-grow: 1;
+            position: relative;
+            background-image: radial-gradient(#ccc 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: auto;
+            cursor: grab;
+        }
+
+        #workspace:active {
+            cursor: grabbing;
+        }
+
+        #svg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .story-node {
+            position: absolute;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: move;
+            width: 160px;
+            user-select: none;
+        }
+
+        .dot {
+            width: 24px;
+            height: 24px;
+            background: #333;
+            color: white;
+            border: 3px solid white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            margin-bottom: 5px;
+        }
+
+        .node-text {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            text-align: center;
+            white-space: pre-wrap;
+            pointer-events: auto;
+            /* 允許文字區域被雙擊 */
+            max-width: 200px;
+        }
+
+        .highlight {
+            font-weight: bold;
+            padding: 0 1px;
+        }
+
+        /* 提示字 */
+        .hint {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="sidebar">
+        <!-- 將這段放在 #sidebar 內的最上方，或是最下方 -->
+        <div class="panel-header">
+            <h2>檔案存取</h2>
+        </div>
+        <div class="panel-content" style="flex-grow: 0; border-bottom: 1px solid #eee;">
+            <div class="btn-group">
+                <button onclick="downloadJSON()" style="background: #4CAF50;">⬇ 下載存檔 (JSON)</button>
+                <button onclick="document.getElementById('fileInput').click()" style="background: #FF9800;">⬆
+                    載入存檔</button>
+                <!-- 隱藏的檔案上傳輸入框 -->
+                <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadJSON(this)">
+            </div>
+        </div>
+        <!-- 角色區塊 -->
+        <div class="panel-header">
+            <h2>角色管理</h2>
+        </div>
+        <div class="panel-content" style="flex-grow: 0; border-bottom: 1px solid #eee;">
+            <div class="btn-group">
+                <input type="text" id="charName" placeholder="角色名稱" onkeypress="handleCharEnter(event)">
+                <input type="color" id="charColor" value="#ff5722" style="width: 50px; padding: 0;">
+                <button onclick="addCharacter()">新增</button>
+            </div>
+            <div id="char-list">
+                <!-- 角色標籤動態產生 -->
+            </div>
+            <div class="hint">點擊標籤可插入名字，雙擊可編輯</div>
+        </div>
+
+        <!-- 劇情區塊 -->
+        <div class="panel-header">
+            <h2>劇情編排</h2>
+        </div>
+        <div class="panel-content" style="display: flex; flex-direction: column;">
+            <div>
+                <input type="text" id="plotContent" placeholder="輸入劇情內容..." onkeypress="handlePlotEnter(event)">
+                <button class="add-btn" onclick="addPlotNode()">＋ 加入劇情節點</button>
+            </div>
+
+            <div class="hint">拖曳卡片排序，雙擊卡片編輯</div>
+
+            <div id="plot-list" ondragover="handleDragOver(event)">
+                <!-- 劇情卡片動態產生 -->
+            </div>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <svg id="svg-layer"></svg>
+        <!-- 畫布節點動態產生 -->
+    </div>
+
+    <script>
+        // 資料狀態
+        let characters = []; // [{id, name, color}]
+        let nodes = [];      // [{id, text, x, y, el, listEl}]
+        let nextCharId = 1;
+        let nextNodeId = 1;
+
+        const workspace = document.getElementById('workspace');
+        const svgLayer = document.getElementById('svg-layer');
+        const listContainer = document.getElementById('plot-list');
+        const charListContainer = document.getElementById('char-list');
+        const plotInput = document.getElementById('plotContent');
+
+        // ==========================
+        // 角色管理功能
+        // ==========================
+
+        function handleCharEnter(e) { if (e.key === 'Enter') addCharacter(); }
+
+        function addCharacter() {
+            const nameInput = document.getElementById('charName');
+            const colorInput = document.getElementById('charColor');
+            const name = nameInput.value.trim();
+
+            if (!name) return;
+
+            const charObj = {
+                id: nextCharId++,
+                name: name,
+                color: colorInput.value
+            };
+            characters.push(charObj);
+
+            renderCharacterTag(charObj);
+
+            nameInput.value = '';
+            refreshAllText();
+        }
+
+        function renderCharacterTag(charObj) {
+            const tag = document.createElement('div');
+            tag.className = 'char-tag';
+            tag.dataset.id = charObj.id;
+
+
+            tag.innerHTML = `
+                <div class="char-color-box" style="background:${charObj.color}"></div>
+                <span>${charObj.name}</span>
+                <span class="delete-char-btn" title="刪除">✕</span>
+            `;
+
+            // 1. 點擊：插入名字到輸入框
+            tag.addEventListener('click', (e) => {
+                // 如果點到刪除鈕，不執行插入
+                if (e.target.classList.contains('delete-char-btn')) return;
+
+                // 游標位置插入 (簡單版：直接加在最後)
+                plotInput.value += charObj.name;
+                plotInput.focus();
+            });
+
+            // 2. 雙擊：編輯
+            tag.addEventListener('dblclick', () => {
+                const newName = prompt('修改角色名稱:', charObj.name);
+                if (newName !== null && newName.trim() !== '') {
+                    charObj.name = newName.trim();
+                    // 重新渲染這個 tag 的文字
+                    tag.querySelector('span').textContent = charObj.name;
+                    refreshAllText();
+                }
+            });
+
+            // 2.1 點擊顏色球：修改顏色
+            const colorBox = tag.querySelector('.char-color-box');
+            colorBox.addEventListener('click', (e) => {
+                e.stopPropagation(); // 防止觸發插入名字
+                // 建立一個隱藏的 input color 來選色
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.value = charObj.color;
+                picker.onchange = () => {
+                    charObj.color = picker.value;
+                    colorBox.style.background = charObj.color;
+                    tag.style.borderLeftColor = charObj.color;
+                    refreshAllText();
+                };
+                picker.click();
+            });
+
+            // 3. 刪除
+            const delBtn = tag.querySelector('.delete-char-btn');
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm(`確定刪除角色「${charObj.name}」嗎？`)) {
+                    characters = characters.filter(c => c.id !== charObj.id);
+                    tag.remove();
+                    refreshAllText();
+                }
+            });
+
+            charListContainer.appendChild(tag);
+        }
+
+        // 格式化文字 (將角色名變色)
+        function formatText(text) {
+            let formatted = text;
+            // 依照名字長度排序，避免「小明」先取代了「小明王」
+            const sortedChars = [...characters].sort((a, b) => b.name.length - a.name.length);
+
+            sortedChars.forEach(char => {
+                const regex = new RegExp(escapeRegExp(char.name), 'g');
+                formatted = formatted.replace(regex, `<span class="highlight" style="color:${char.color}">${char.name}</span>`);
+            });
+            return formatted;
+        }
+
+        function refreshAllText() {
+            nodes.forEach(node => {
+                const html = formatText(node.text);
+                node.el.querySelector('.node-text').innerHTML = html;
+            });
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // ==========================
+        // 劇情節點功能
+        // ==========================
+
+        function handlePlotEnter(e) { if (e.key === 'Enter') addPlotNode(); }
+
+        function addPlotNode() {
+            const text = plotInput.value.trim();
+            if (!text) return;
+
+            const id = `node-${nextNodeId++}`;
+
+            // --- 修改開始：原本複雜的 XY 計算全部拿掉，暫時給 0 即可 ---
+            let startX = 0;
+            let startY = 0;
+            // --- 修改結束 ---
+
+            // 建立 DOM (這部分跟原本一樣)
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'story-node';
+            nodeEl.innerHTML = `<div class="dot"></div><div class="node-text"></div>`;
+            workspace.appendChild(nodeEl);
+
+            const listEl = document.createElement('div');
+            listEl.className = 'plot-card';
+            listEl.draggable = true;
+            listEl.dataset.nodeId = id;
+            listEl.innerHTML = `
+                <span class="card-index"></span>
+                <div class="card-content">${text}</div>
+                <div class="delete-node-btn" title="刪除">✕</div>
+            `;
+            listContainer.appendChild(listEl);
+
+            const nodeData = { id, text, x: startX, y: startY, el: nodeEl, listEl: listEl };
+            nodes.push(nodeData);
+
+            updateNodeVisuals(nodeData, nodes.length);
+            bindNodeEvents(nodeData);
+
+            plotInput.value = '';
+            listContainer.scrollTop = listContainer.scrollHeight;
+
+            // 🔥 關鍵：新增完後，呼叫自動排版，它會幫你把所有點（包含剛新增的）排整齊
+            autoLayout();
+        }
+
+        function updateNodeVisuals(node, index) {
+            // 更新編號
+            node.el.querySelector('.dot').textContent = index;
+            node.listEl.querySelector('.card-index').textContent = `#${index}`;
+            // 更新文字與顏色
+            node.el.querySelector('.node-text').innerHTML = formatText(node.text);
+            node.listEl.querySelector('.card-content').textContent = node.text;
+        }
+
+        function bindNodeEvents(node) {
+            // --- 列表卡片事件 ---
+
+            // 雙擊編輯
+            node.listEl.addEventListener('dblclick', () => editNodeContent(node));
+
+            // 刪除按鈕
+            node.listEl.querySelector('.delete-node-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteNode(node);
+            });
+
+            // 拖曳排序
+            node.listEl.addEventListener('dragstart', () => node.listEl.classList.add('dragging'));
+            node.listEl.addEventListener('dragend', () => {
+                node.listEl.classList.remove('dragging');
+                reorderNodes();
+            });
+
+            // --- 畫布節點事件 ---
+
+            // 雙擊畫布上的文字也可以編輯
+            node.el.querySelector('.node-text').addEventListener('dblclick', (e) => {
+                e.stopPropagation(); // 避免觸發畫布的點擊
+                editNodeContent(node);
+            });
+
+            // 拖曳位置
+            makeDraggable(node);
+        }
+
+        function editNodeContent(node) {
+            const newText = prompt("編輯劇情內容:", node.text);
+            if (newText !== null && newText.trim() !== "") {
+                node.text = newText.trim();
+                // 重新渲染該節點的文字
+                node.el.querySelector('.node-text').innerHTML = formatText(node.text);
+                node.listEl.querySelector('.card-content').textContent = node.text;
+            }
+        }
+
+        function deleteNode(targetNode) {
+            if (!confirm("確定刪除此劇情點？")) return;
+
+            // 1. 移除 DOM
+            targetNode.el.remove();
+            targetNode.listEl.remove();
+
+            // 2. 從陣列移除
+            nodes = nodes.filter(n => n.id !== targetNode.id);
+
+            // 3. 重新編號 (#1, #2...)
+            nodes.forEach((n, index) => {
+                n.el.querySelector('.dot').textContent = index + 1;
+                n.listEl.querySelector('.card-index').textContent = `#${index + 1}`;
+            });
+
+            // 4. 重畫線
+            drawLines();
+        }
+
+        // ==========================
+        // 拖曳排序與連線邏輯
+        // ==========================
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const draggingItem = document.querySelector('.dragging');
+            const container = listContainer;
+
+            // 找出最近的元素
+            const siblings = [...container.querySelectorAll('.plot-card:not(.dragging)')];
+            const nextSibling = siblings.find(sibling => {
+                return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
+            });
+
+            container.insertBefore(draggingItem, nextSibling);
+        }
+
+        function reorderNodes() {
+            const newOrderIds = [...listContainer.querySelectorAll('.plot-card')].map(el => el.dataset.nodeId);
+            const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+            nodes = newOrderIds.map(id => nodeMap.get(id));
+
+            nodes.forEach((n, index) => {
+                n.el.querySelector('.dot').textContent = index + 1;
+                n.listEl.querySelector('.card-index').textContent = `#${index + 1}`;
+            });
+
+            // 🔥 修改這裡：原本是 drawLines()，現在改成 autoLayout()
+            // 這樣排序改變時，格子位置也會跟著重新洗牌
+            autoLayout();
+        }
+
+        function drawLines() {
+            // 1. 自動撐大畫布 (保留上一版的功能)
+            let maxX = workspace.clientWidth;
+            let maxY = workspace.clientHeight;
+            nodes.forEach(node => {
+                if (node.x + 300 > maxX) maxX = node.x + 300;
+                if (node.y + 300 > maxY) maxY = node.y + 300;
+            });
+            svgLayer.style.width = maxX + 'px';
+            svgLayer.style.height = maxY + 'px';
+
+            // 2. 清除舊線並定義箭頭
+            svgLayer.innerHTML = '';
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.innerHTML = `<marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#999"/></marker>`;
+            svgLayer.appendChild(defs);
+
+            if (nodes.length < 2) return;
+
+            // 3. 開始繪製折線路徑
+            for (let i = 0; i < nodes.length - 1; i++) {
+                const curr = nodes[i];
+                const next = nodes[i + 1];
+
+                // 座標校正：對準圓點中心
+                const x1 = curr.x + 80;
+                const y1 = curr.y + 12;
+                const x2 = next.x + 80;
+                const y2 = next.y + 12;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+                // 判斷是否換行 (利用 Y 軸的高度差)
+                const isNextRow = (next.y - curr.y) > 100; // 如果高度差超過 100px 視為換行
+
+                let d = '';
+                if (isNextRow) {
+                    // --- 折線邏輯 (90度轉彎) ---
+                    // 計算中間的轉折高度 (兩行之間)
+                    const midY = curr.y + (next.y - curr.y) / 2 + 12;
+
+                    // 路徑指令解釋：
+                    // M x1 y1 : 移動到起點
+                    // V midY  : 垂直畫線 (Vertical) 到中間高度
+                    // H x2    : 水平畫線 (Horizontal) 到目標的 X 位置
+                    // V y2    : 垂直畫線 (Vertical) 到終點
+                    d = `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
+                } else {
+                    // --- 直線邏輯 (同一行) ---
+                    d = `M ${x1} ${y1} L ${x2} ${y2}`;
+                }
+
+                path.setAttribute('d', d);
+                path.setAttribute('stroke', '#999');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('stroke-dasharray', '5,5');
+                path.setAttribute('fill', 'none'); // 重要：路徑不要填色
+                path.setAttribute('marker-end', 'url(#arrow)');
+
+                svgLayer.appendChild(path);
+            }
+        }
+
+        function makeDraggable(node) {
+            const el = node.el;
+            let isDragging = false;
+            let startX, startY, initL, initT;
+
+            el.addEventListener('mousedown', (e) => {
+                // 如果點到文字框，不觸發拖曳（讓雙擊文字比較容易判定）
+                if (e.target.classList.contains('node-text')) return;
+
+                isDragging = true;
+                startX = e.clientX; startY = e.clientY;
+                initL = el.offsetLeft; initT = el.offsetTop;
+                el.style.zIndex = 100;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const newX = initL + (e.clientX - startX);
+                const newY = initT + (e.clientY - startY);
+
+                el.style.left = newX + 'px';
+                el.style.top = newY + 'px';
+
+                node.x = newX; node.y = newY;
+                drawLines();
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    el.style.zIndex = 2;
+                }
+            });
+        }
+
+        // ==========================
+        // 檔案存取功能 (Export / Import)
+        // ==========================
+
+        function downloadJSON() {
+            // 1. 整理要儲存的資料
+            // 注意：nodes 陣列裡面原本包含 DOM 物件 (el, listEl)，這些不能存進 JSON
+            // 所以我們要 map 出一個乾淨的資料陣列
+            const cleanNodes = nodes.map(n => ({
+                id: n.id,
+                text: n.text,
+                x: n.x,
+                y: n.y
+            }));
+
+            const dataToSave = {
+                characters: characters,
+                nodes: cleanNodes,
+                nextCharId: nextCharId,
+                nextNodeId: nextNodeId
+            };
+
+            // 2. 轉成 Blob 並下載
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "story_backup_" + new Date().toISOString().slice(0, 10) + ".json");
+            document.body.appendChild(downloadAnchorNode); // Firefox 需要這一行
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function loadJSON(inputElement) {
+            const file = inputElement.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    restoreData(data);
+                } catch (err) {
+                    alert("讀取檔案失敗，格式可能錯誤。\n" + err);
+                }
+            };
+            reader.readAsText(file);
+
+            // 清空 input 讓同個檔案可以再次被選取
+            inputElement.value = '';
+        }
+
+        function restoreData(data) {
+            if (!data.characters || !data.nodes) {
+                alert("檔案缺少必要資料 (characters 或 nodes)");
+                return;
+            }
+
+            // 1. 清空現有畫面與資料
+            characters = [];
+            nodes = [];
+            charListContainer.innerHTML = '';
+            listContainer.innerHTML = '';
+
+            // 保留 SVG 層，清空其他 DOM
+            workspace.innerHTML = '';
+            workspace.appendChild(svgLayer);
+            svgLayer.innerHTML = ''; // 清空線條
+
+            // 2. 還原變數計數器 (如果檔案裡沒有，就用預設值)
+            nextCharId = data.nextCharId || 1;
+            nextNodeId = data.nextNodeId || 1;
+
+            // 3. 還原角色
+            data.characters.forEach(charObj => {
+                characters.push(charObj);
+                renderCharacterTag(charObj);
+            });
+
+            // 4. 還原劇情節點
+            data.nodes.forEach((nodeData, index) => {
+                // 重建 DOM 結構 (邏輯參考原本的 addPlotNode，但使用指定的 xy 和 id)
+                reconstructNodeDOM(nodeData, index + 1);
+            });
+
+            // 5. 最後重畫線
+            autoLayout();
+        }
+
+        // 這是專門用來「依照資料重建 DOM」的函式
+        function reconstructNodeDOM(nodeData, index) {
+            // 建立畫布節點
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'story-node';
+            nodeEl.style.left = nodeData.x + 'px';
+            nodeEl.style.top = nodeData.y + 'px';
+            nodeEl.innerHTML = `
+        <div class="dot">${index}</div>
+        <div class="node-text">${formatText(nodeData.text)}</div>
+    `;
+            workspace.appendChild(nodeEl);
+
+            // 建立列表卡片
+            const listEl = document.createElement('div');
+            listEl.className = 'plot-card';
+            listEl.draggable = true;
+            listEl.dataset.nodeId = nodeData.id;
+            listEl.innerHTML = `
+        <span class="card-index">#${index}</span>
+        <div class="card-content">${nodeData.text}</div>
+        <div class="delete-node-btn" title="刪除">✕</div>
+    `;
+            listContainer.appendChild(listEl);
+
+            // 重組完整的 node 物件
+            const newNode = {
+                id: nodeData.id,
+                text: nodeData.text,
+                x: nodeData.x,
+                y: nodeData.y,
+                el: nodeEl,
+                listEl: listEl
+            };
+
+            nodes.push(newNode);
+
+            // 重新綁定所有事件 (拖曳、編輯、刪除)
+            bindNodeEvents(newNode);
+        }
+
+        // ==========================
+        // 自動排版系統
+        // ==========================
+
+        function autoLayout() {
+            const xStart = 50;       // 起始 X
+            const yStart = 100;      // 起始 Y
+            const xStep = 180;       // 左右格子的間距 (原本大約是180)
+            const yStep = 250;       // 🔥 上下換行的間距 (這裡加大！)
+            const maxWidth = workspace.clientWidth - 200; // 畫布右邊界
+
+            let currentX = xStart;
+            let currentY = yStart;
+
+            nodes.forEach((node) => {
+                // 1. 強制更新節點的座標資料
+                node.x = currentX;
+                node.y = currentY;
+
+                // 2. 更新畫面上的圓點位置
+                node.el.style.left = currentX + 'px';
+                node.el.style.top = currentY + 'px';
+
+                // 3. 計算下一個點的位置
+                currentX += xStep;
+
+                // 4. 判斷是否需要換行
+                if (currentX > maxWidth) {
+                    currentX = xStart; // 回到最左邊
+                    currentY += yStep; // 往下跳一行
+                }
+            });
+
+            // 5. 排版完後重畫連線，確保線條正確
+            drawLines();
+        }
+    </script>
+</body>
+
+</html>
